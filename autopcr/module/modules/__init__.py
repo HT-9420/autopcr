@@ -9,8 +9,10 @@ from .clan import *
 from .cron import *
 from .daily import *
 from .exequip import *
+from .exequip_cleanup import *
 from .gacha import *
 from .hatsune import *
+from .labyrinth import *
 from .room import *
 from .shiori import *
 from .shop import *
@@ -20,6 +22,8 @@ from .tower import *
 from .tools import *
 from .travel import *
 from .unit import *
+from .smart_unit_enhance import *
+from .sync_growth import *
 from .talent import *
 from .mirage import *
 
@@ -68,10 +72,12 @@ daily_modules = ModuleList(
         explore_exp,
         explore_mana,
         underground_skip,
+        # underground_donate,
         special_underground_skip,
         mirage_floor_receive,
         mirage_nemesis_sweep,
         tower_cloister_sweep,
+        labyrinth_sweep,
         jjc_reward,
         abyss_quest_sweep,
         abyss_boss_sweep,
@@ -79,18 +85,8 @@ daily_modules = ModuleList(
         present_receive,
         talent_sweep2,
         smart_very_hard_sweep,
-        xinsui9_sweep,
-        xinsui8_sweep,
-        xinsui7_sweep,
-        xinsui6_sweep,
-        xinsui5_sweep,
-        xinsui4_sweep,
-        xinsui3_sweep,
-        xinsui2_sweep,
-        xinsui1_sweep,
-        starcup3_sweep,
-        starcup2_sweep,
-        starcup1_sweep, 
+        xinsui_sweep,
+        starcup_sweep,
         hatsune_h_sweep,
         hatsune_dear_reading,
         smart_sweep,
@@ -102,8 +98,11 @@ daily_modules = ModuleList(
         last_normal_quest_sweep,
         lazy_normal_sweep,
 
-        all_in_hatsune,
+        last_hard_quest_sweep,
+        last_unlock_normal_quest_sweep,
 
+        all_in_hatsune,
+        
         hatsune_vhboss_sweep,
         hatsune_hboss_sweep,
         hatsune_mission_accept1,
@@ -116,6 +115,7 @@ daily_modules = ModuleList(
         mission_receive_last,
         seasonpass_accept,
         seasonpass_reward,
+        role_gacha,
 
         normal_shop,
         limit_shop,
@@ -127,6 +127,7 @@ daily_modules = ModuleList(
         master_shop,
 
         clan_equip_request,
+        clan_equip_donate,
         love_up,
         shiori_mission_check,
         alces_story_reading,
@@ -176,8 +177,11 @@ unit_modules = ModuleList(
         missing_unit,
         refresh_box,
         unit_promote,
+        sync_growth,
+        sync_growth_underground_shop,
         unit_memory_buy,
         unit_set_unique_equip_growth,
+        smart_unit_enhance,
         unit_exceed,
         unit_evolution,
     ]
@@ -210,7 +214,9 @@ tool_modules = ModuleList(
     '工具',
     'tool',
     [
+        labyrinth_start_reroll,
         ex_equip_rainbow_enchance,
+        ex_equip_cleanup_execute,
         ex_equip_power_maximun,
         set_my_party2,
         find_talent_quest,
@@ -219,7 +225,9 @@ tool_modules = ModuleList(
         # cook_pudding,
         ex_equip_rank_up,
         ex_equip_enhance_up,
+        ex_equip_state,
         half_schedule,
+        set_my_party,
         caravan_play,
         caravan_shop_buy,
         clan_battle_knive,
@@ -231,5 +239,15 @@ tool_modules = ModuleList(
         remove_cb_ex_equip,
         remove_cb_support,
         redeem_unit_swap,
+
+        remove_normal_ex_equip,
+        calc_best_3star_ex_equip,
+        
+        jjc_back,
+        pjjc_back,
+        jjc_info,
+        pjjc_info,
+        pjjc_def_shuffle_team,
+        pjjc_atk_shuffle_team,
     ]
 )

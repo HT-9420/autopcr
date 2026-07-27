@@ -5,12 +5,13 @@ from ..core.pcrclient import eLoginStatus, pcrclient
 from ..model.error import *
 from ..model.enums import *
 from typing import Dict, List, Tuple, Union, Any, Iterator
-from ..constants import CACHE_DIR
+from ..constants import MODULE_STATE_DIR
 from .config import Config, _wrap_init
 from enum import Enum
 from datetime import datetime
 from ..db.database import db
 from ..util.logger import instance as logger
+from ..util.cache_cleanup import migrate_legacy_module_cache
 
 def default(val):
     return lambda cls:_wrap_init(cls, lambda self: setattr(self, 'default', val))
@@ -148,12 +149,22 @@ class Module:
         self.table: ResultTable = ResultTable()
 
         from os.path import join
-        self.cache_path: str = join(CACHE_DIR, "modules", self.key, self._parent.id + ".json")
+        self.cache_path: str = join(MODULE_STATE_DIR, self.key, self._parent.id + ".json")
+        legacy_id = getattr(self._parent, "legacy_id", None)
+        self.legacy_cache_path: str = (
+            join(MODULE_STATE_DIR, self.key, legacy_id + ".json")
+            if legacy_id else self.cache_path
+        )
         self.cache_ready = False
         self._cache = {}
 
     def init_cache(self):
         from os.path import exists
+        if not exists(self.cache_path):
+            try:
+                migrate_legacy_module_cache(self.cache_path, self.legacy_cache_path)
+            except OSError:
+                logger.exception("Failed to migrate legacy module cache %s", self.legacy_cache_path)
         if not exists(self.cache_path):
             from os import makedirs
             from os.path import dirname

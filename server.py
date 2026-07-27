@@ -67,6 +67,7 @@ sv_help = f"""
 - {prefix}查装备 [<rank>] [fav] 查询缺口装备，rank为数字，只查询>=rank的角色缺口装备，fav表示只查询favorite的角色
 - {prefix}查深域 查询深域通关情况
 - {prefix}查公会深域 查询公会深域通关情况
+- {prefix}黎明界开局 <美食殿堂|破晓之星|咲恋救济院|王宫骑士团|拉比林斯> 可以只打部分字
 - {prefix}刷图推荐 [<rank>] [fav] 查询缺口装备的刷图推荐，格式同上
 - {prefix}公会支援 查询公会支援角色配置
 - {prefix}卡池 查看当前卡池
@@ -781,6 +782,74 @@ async def clan_support(botev: BotEvent):
 async def find_xinsui(botev: BotEvent):
     return {}
 
+@register_tool("jjc回刺", "jjc_back")
+async def jjc_back(botev: BotEvent):
+    msg = await botev.message()
+    opponent_jjc_rank = -1
+    opponent_jjc_attack_team_id = 1
+    try:
+        opponent_jjc_rank = int(msg[0])
+        del msg[0]
+    except:
+        pass
+    try:
+        opponent_jjc_attack_team_id = int(msg[0])
+        del msg[0]
+    except:
+        pass
+    config = {
+        "opponent_jjc_rank": opponent_jjc_rank,
+        "opponent_jjc_attack_team_id": opponent_jjc_attack_team_id,
+    }
+    return config
+
+@register_tool("pjjc回刺", "pjjc_back")
+async def pjjc_back(botev: BotEvent):
+    msg = await botev.message()
+    opponent_pjjc_rank = -1
+    opponent_pjjc_attack_team_id = 1
+    try:
+        opponent_pjjc_rank = int(msg[0])
+        del msg[0]
+    except:
+        pass
+    try:
+        opponent_pjjc_attack_team_id = int(msg[0])
+        del msg[0]
+    except:
+        pass
+    config = {
+        "opponent_pjjc_rank": opponent_pjjc_rank,
+        "opponent_pjjc_attack_team_id": opponent_pjjc_attack_team_id,
+    }
+    return config
+
+@register_tool("jjc透视", "jjc_info")
+async def jjc_info(botev: BotEvent):
+    use_cache = True
+    msg = await botev.message()
+    try:
+        use_cache = not is_args_exist(msg, 'flush')
+    except:
+        pass
+    config = {
+        "jjc_info_cache": use_cache,
+    }
+    return config
+
+@register_tool("pjjc透视", "pjjc_info")
+async def pjjc_info(botev: BotEvent):
+    use_cache = True
+    msg = await botev.message()
+    try:
+        use_cache = not is_args_exist(msg, 'flush')
+    except:
+        pass
+    config = {
+        "pjjc_info_cache": use_cache,
+    }
+    return config
+
 @register_tool("查记忆碎片", "get_need_memory")
 async def find_memory(botev: BotEvent):
     memory_demand_consider_unit = '所有'
@@ -925,6 +994,14 @@ async def quest_recommand(botev: BotEvent):
     return config
 
 
+@register_tool("pjjc换防", "pjjc_def_shuffle_team")
+async def pjjc_def_shuffle_team(botev: BotEvent):
+    return {}
+
+@register_tool("pjjc换攻", "pjjc_atk_shuffle_team")
+async def pjjc_atk_shuffle_team(botev: BotEvent):
+    return {}
+
 @register_tool("查缺角色", "missing_unit")
 async def find_missing_unit(botev: BotEvent):
     return {}
@@ -994,6 +1071,24 @@ async def half_schedule(botev: BotEvent):
 # @register_tool("返钻", "return_jewel")
 # async def return_jewel(botev: BotEvent):
     # return {}
+
+@register_tool("黎明界开局", "labyrinth_start_reroll")
+async def labyrinth_start_reroll(botev: BotEvent):
+    guild_id = 0
+    msg = await botev.message()
+    try:
+        for guild in db.labyrinth_enter_guild.values():
+            if msg[0] in guild.guild_name.replace(r"\n", ""):
+                guild_id = guild.guild_id
+                del msg[0]
+                break
+    except:
+        pass
+    if guild_id == 0:
+        await botev.finish(f"未找到公会，请输入包含以下公会名字：" + "\n".join([guild.guild_name.replace(r"\n", "") for guild in db.labyrinth_enter_guild.values()]))
+    return {
+            "labyrinth_reroll_guild_id": guild_id,
+    }
 
 @register_tool("查深域", "find_talent_quest")
 async def find_talent_quest(botev: BotEvent):

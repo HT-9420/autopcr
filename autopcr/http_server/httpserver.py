@@ -12,7 +12,7 @@ from quart_compress import Compress
 from quart_rate_limiter import RateLimiter, rate_limit, RateLimitExceeded
 
 from .validator import validate_dict, ValidateInfo, validate_ok_dict, enable_manual_validator
-from ..constants import CACHE_DIR, ALLOW_REGISTER, SUPERUSER
+from ..constants import ALLOW_REGISTER, SUPERUSER
 from ..module.accountmgr import Account, AccountManager, instance as usermgr, AccountException, UserData, \
     PermissionLimitedException, UserDisabledException, UserException
 from ..util.draw import instance as drawer
@@ -20,8 +20,6 @@ from ..util.logger import instance as logger
 
 APP_VERSION_MAJOR = 1
 APP_VERSION_MINOR = 7
-
-CACHE_HTTP_DIR = os.path.join(CACHE_DIR, 'http_server')
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 static_path = os.path.join(PATH, 'ClientApp')
@@ -555,11 +553,25 @@ data: {ret}\n\n'''
         @self.web.route("/", defaults={"path": ""})
         @self.web.route("/<path:path>")
         async def index(path):
-            if os.path.exists(os.path.join(str(self.web.static_folder), path)):
+            file_path = os.path.join(str(self.web.static_folder), path)
+            if os.path.isfile(file_path) and path != 'index.html':
                 return await send_from_directory(str(self.web.static_folder), path, mimetype=("text/javascript" if path.endswith(".js") else None))
             else:
-                return await send_from_directory(str(self.web.static_folder), 'index.html')
+                index_path = os.path.join(str(self.web.static_folder), 'index.html')
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    html = f.read()
+                
+                return html, 200, {
+                    'Content-Type': 'text/html; charset=utf-8',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                }
 
     def run_forever(self, loop):
+        from quart import redirect
+        @self.quart.route('/')
+        async def root_redirect():
+            return redirect('/daily/account')
         self.quart.register_blueprint(self.app)
         self.quart.run(host=self.host, port=self.port, loop=loop)

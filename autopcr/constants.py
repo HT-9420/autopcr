@@ -16,6 +16,14 @@ CLIENT_POOL_MAX_FARMER_CLIENT_ALIVE = 2
 SESSION_ERROR_MAX_RETRY = 2
 MAX_API_RUNNING = 8
 
+CACHE_VERSION_KEEP = max(1, int(os.getenv("AUTOPCR_CACHE_VERSION_KEEP", "1")))
+CACHE_CLEANUP_INTERVAL_SECONDS = max(300, int(os.getenv("AUTOPCR_CACHE_CLEANUP_INTERVAL_SECONDS", "86400")))
+RESULT_ORPHAN_GRACE_SECONDS = max(0, int(os.getenv("AUTOPCR_RESULT_ORPHAN_GRACE_DAYS", "7"))) * 86400
+RESULT_RETENTION_SECONDS = max(0, int(os.getenv("AUTOPCR_RESULT_RETENTION_DAYS", "30"))) * 86400
+ARENA_CACHE_MAX_AGE_SECONDS = max(0, int(os.getenv("AUTOPCR_ARENA_CACHE_MAX_AGE_DAYS", "5"))) * 86400
+CRON_LOG_MAX_BYTES = max(1024 * 1024, int(os.getenv("AUTOPCR_CRON_LOG_MAX_BYTES", str(10 * 1024 * 1024))))
+CACHE_CLEANUP_DRY_RUN = bool(strtobool(os.getenv("AUTOPCR_CACHE_CLEANUP_DRY_RUN", "false")))
+
 BSDK = '官服'
 QSDK = '渠道服'
 BSDKNOLOGIN = '官服免登录'
@@ -28,15 +36,25 @@ ALLOW_REGISTER = strtobool(os.getenv("AUTOPCR_SERVER_ALLOW_REGISTER", 'true'))
 SUPERUSER = str(os.getenv("AUTOPCR_SERVER_SUPERUSER", ""))
 
 ROOT_DIR = os.path.join(os.path.dirname(__file__), '..')
-CACHE_DIR = os.path.join(ROOT_DIR, './cache/')
-RESULT_DIR = os.path.join(ROOT_DIR, './result/')
+
+
+def _data_dir(env_name: str, default: str) -> str:
+    return os.path.abspath(os.path.expanduser(os.getenv(env_name, default)))
+
+
+CACHE_DIR = _data_dir("AUTOPCR_CACHE_DIR", os.path.join(ROOT_DIR, 'cache'))
+RESULT_DIR = _data_dir("AUTOPCR_RESULT_DIR", os.path.join(ROOT_DIR, 'result'))
 DATA_DIR = os.path.join(ROOT_DIR, './data/')
-CONFIG_PATH = os.path.join(CACHE_DIR, './http_server/') 
+CONFIG_PATH = _data_dir("AUTOPCR_CONFIG_DIR", os.path.join(CACHE_DIR, 'http_server'))
+MODULE_STATE_DIR = _data_dir("AUTOPCR_MODULE_STATE_DIR", os.path.join(CACHE_DIR, 'modules'))
 OLD_CONFIG_PATH = os.path.join(ROOT_DIR, 'autopcr/http_server/config')
 CLAN_BATTLE_FORBID_PATH = os.path.join(CONFIG_PATH, 'clan_battle_forbidden.txt')
 
-LOG_PATH = os.path.join(ROOT_DIR, 'log/')
+LOG_PATH = _data_dir("AUTOPCR_LOG_DIR", os.path.join(ROOT_DIR, 'log'))
+CRON_LOG_PATH = os.path.join(LOG_PATH, 'cron_log.txt')
 LOG_LEVEL = logging.INFO
+
+CRON_ENABLED = bool(strtobool(os.getenv("AUTOPCR_CRON_ENABLED", "true")))
 
 UUID_NAMESPACE = uuid.UUID("83a3e9e1-2690-4ff2-88bb-075ba6a6743c")
 
@@ -90,6 +108,7 @@ IOS_HEADERS = {
 
 def refresh_headers(version: str = None):
     default_ver = '11.4.0'
+    os.makedirs(CACHE_DIR, exist_ok=True)
     if version is not None:
         with open(os.path.join(CACHE_DIR, 'version.txt'), 'w', encoding='utf-8') as f:
             f.write(version)

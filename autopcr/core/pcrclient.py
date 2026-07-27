@@ -50,6 +50,41 @@ class pcrclient(apiclient):
         await self.session.clear_session()
         self.need_refresh = False
 
+    async def labyrinth_top(self):
+        if not self.data.is_quest_cleared(11065001):
+            raise SkipError("迷宫未解锁")
+        if 4013001 not in self.data.read_story_ids:
+            await self.read_story(4013001)
+        req = LabyrinthTopRequest()
+        return await self.request(req)
+
+    async def labyrinth_enter(self, guild_id: int, difficulty: int):
+        req = LabyrinthEnterRequest()
+        req.guild_id = guild_id
+        req.difficulty = difficulty
+        return await self.request(req)
+
+    async def labyrinth_retire(self, enter_id: int):
+        req = LabyrinthRetireRequest()
+        req.enter_id = enter_id
+        return await self.request(req)
+
+    async def labyrinth_skip(self, guild_id: int, skip_count: int):
+        req = LabyrinthSkipRequest()
+        req.skip_list = [LabyrinthSkipData(guild_id=guild_id, skip_count=skip_count)]
+        req.current_passport_num = self.data.get_inventory(db.labyrinth_ticket)
+        return await self.request(req)
+
+    async def unit_role_gacha_index(self):
+        req = UnitRoleGachaIndexRequest()
+        return await self.request(req)
+
+    async def unit_role_gacha_exec(self, gacha_times: int, current_cost_num: int):
+        req = UnitRoleGachaExecRequest()
+        req.gacha_times = gacha_times
+        req.current_cost_num = current_cost_num
+        return await self.request(req)
+
     async def clan_battle_top(self):
         if not self.data.clan:
             raise AbortError("未加入公会")
@@ -169,6 +204,11 @@ class pcrclient(apiclient):
         req.from_view = from_view
         req.item_list = item_list
         req.consume_ex_serial_id_list = consume_ex_serial_id_list
+        return await self.request(req)
+
+    async def equipment_protect_ex(self, protection_list: List[ExtraEquipProtectInfo]):
+        req = EquipmentProtectExRequest()
+        req.protection_list = protection_list
         return await self.request(req)
 
     async def caravan_top(self):
@@ -515,6 +555,15 @@ class pcrclient(apiclient):
         req.cost_item_list = cost_item_list
         return await self.request(req)
 
+    async def unit_exceed_level_limit_with_exceed_item(
+        self, unit_id: int, exceed_stage: int, exceed_item_id: int
+    ):
+        req = UnitExceedLevelLimitWithExceedItemRequest()
+        req.unit_id = unit_id
+        req.exceed_stage = exceed_stage
+        req.exceed_item_id = exceed_item_id
+        return await self.request(req)
+
     async def equipment_enhance(self, unit_id: int, equip_slot_num: int, current_enhancement_pt: int, items: typing.Counter[ItemType]):
         req = EquipEnhanceRequest()
         req.unit_id = unit_id
@@ -687,15 +736,25 @@ class pcrclient(apiclient):
         req.draw_gold = draw_gold
         return await self.request(req)
 
+    async def draw_from_bank_to_limit(self) -> int:
+        bank = self.data.user_gold_bank_info
+        if not bank or bank.bank_gold <= 0:
+            return 0
+        capacity = max(
+            0,
+            self.data.settings.limit.limit_gold - self.data.get_mana(),
+        )
+        draw_gold = min(bank.bank_gold, capacity)
+        if draw_gold <= 0:
+            return 0
+        await self.draw_from_bank(bank.bank_gold, draw_gold)
+        return draw_gold
+
     async def prepare_mana(self, mana: int):
         if self.data.get_mana() >= mana:
             return True
-        elif self.data.get_mana(include_bank = True) >= mana:
-            to_get = min(self.data.settings.limit.limit_gold, mana) - self.data.get_mana()
-            await self.draw_from_bank(self.data.user_gold_bank_info.bank_gold, to_get)
-            return True
-        else:
-            return False
+        await self.draw_from_bank_to_limit()
+        return self.data.get_mana() >= mana
 
     async def exec_gacha_aware(self, target_gacha: GachaParameter, gacha_times: int, draw_type: eGachaDrawType, current_cost_num: int, campaign_id: int, last_gacha_index_time: int, auto_select_pickup: bool = True, pickup_min_first: bool = False, ticket_item: ItemType = None) -> GachaReward:
 
@@ -1302,7 +1361,7 @@ class pcrclient(apiclient):
         req.current_equip_num = self.data.get_inventory((eInventoryType.Equip, request.equip_id))
         req.donation_num = times
         req.message_id = request.message_id
-        return await self.request(req)
+        return await (self.request(req) if req.current_equip_num >= req.donation_num else 0)
     
     async def quest_skip(self, quest: int, times: int):
         req = QuestSkipRequest()
@@ -1395,7 +1454,7 @@ class pcrclient(apiclient):
         req.wait_interval = 3
         resp = await self.request(req)
         times = {msg.message_id : msg.create_time for msg in resp.clan_chat_message if msg.message_type == eClanChatMessageType.DONATION}
-        return (equip for equip in resp.equip_requests if times[equip.message_id] > self.time - 28800)
+        return [equip for equip in resp.equip_requests if times[equip.message_id] > self.time - 28800]
     
     async def recover_stamina(self, recover_count: int = 1):
         req = ShopRecoverStaminaRequest()
@@ -1768,6 +1827,11 @@ class pcrclient(apiclient):
         req.dungeon_area_id = self.data.dungeon_area_id
         return (await self.request(req)).dispatch_unit_list
 
+    async def clan_other(self, clan_id:int):
+        req = OtherClanInfoRequest()
+        req.clan_id = clan_id
+        return await self.request(req)
+
     async def clan_like(self, viewer_id):
         req = ClanLikeRequest()
         req.target_viewer_id = viewer_id
@@ -1799,15 +1863,14 @@ class pcrclient(apiclient):
         req.wac_auto_option_flag = 1
         return await self.request(req)
 
-    async def borrow_dungeon_member(self, viewer_id):
+    async def borrow_dungeon_member(self, viewer_id, unit_id):
         if not self.data.dungeon_avaliable: return
         if self.data.dungeon_area_id != 0:
             await self.reset_dungeon()
         area = await self.enter_dungeon(31001) # 云海的山脉
+        # 捐赠角色选取移至sweep.py, 这里直接进
         for unit in await self.get_dungeon_unit():
             if unit.owner_viewer_id == viewer_id:
-                if unit.unit_data.unit_level > self.data.team_level + self.data.settings.dungeon.support_lv_band:
-                    continue
                 req = DeckUpdateRequest()
                 req.deck_number = 4
                 req.unit_id_1 = 1
@@ -1819,8 +1882,8 @@ class pcrclient(apiclient):
                 req = DungeonBattleStartRequest()
                 req.quest_id = 31001001 # 云海的山脉第一层
                 dispatch_unit = DungeonBattleStartUnit()
-                dispatch_unit.owner_viewer_id = unit.owner_viewer_id
-                dispatch_unit.unit_id = unit.unit_data.id
+                dispatch_unit.owner_viewer_id = viewer_id
+                dispatch_unit.unit_id = unit_id
                 empty_unit = DungeonBattleStartUnit()
                 empty_unit.owner_viewer_id = self.viewer_id
                 empty_unit.unit_id = 0
@@ -1834,9 +1897,9 @@ class pcrclient(apiclient):
                 req.disable_skin = 1
                 req.support_battle_rarity = 0
                 await self.request(req)
-                req = DungeonBattleRetireRequest()
-                req.quest_id = 31001001
-                await self.request(req)
+                # req = DungeonBattleRetireRequest()
+                # req.quest_id = 31001001
+                # await self.request(req)
                 break
         await self.reset_dungeon()
 
@@ -1877,12 +1940,6 @@ class pcrclient(apiclient):
     def is_stamina_get_not_run(self):
         return self._get_key('stamina_get_not_run', False)
 
-    def is_star_cup_sweep_not_run(self):
-        return self._get_key('star_cup_sweep_not_run', False)
-
-    def is_heart_sweep_not_run(self):
-        return self._get_key('heart_sweep_not_run', False)
-
     def is_cron_run(self):
         return self._get_key('cron_run', False)
 
@@ -1894,12 +1951,6 @@ class pcrclient(apiclient):
 
     def set_stamina_get_not_run(self):
         self._keys['stamina_get_not_run'] = True
-
-    def set_star_cup_sweep_not_run(self):
-        self._keys['star_cup_sweep_not_run'] = True
-
-    def set_heart_sweep_not_run(self):
-        self._keys['heart_sweep_not_run'] = True
 
     def set_cron_run(self):
         self._keys['cron_run'] = True
